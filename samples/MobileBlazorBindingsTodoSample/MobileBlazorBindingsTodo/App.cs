@@ -12,9 +12,9 @@ namespace MobileBlazorBindingsTodo
     {
         public IHost AppHost { get; }
 
-        public App(IServiceCollection additionalServices)
+        public App(string[] args = null, IServiceCollection additionalServices = null)
         {
-            AppHost = Host.CreateDefaultBuilder()
+            AppHost = MobileBlazorBindingsHost.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Register backend-specific services (e.g. iOS, Android)
@@ -28,7 +28,8 @@ namespace MobileBlazorBindingsTodo
                 })
                 .Build();
 
-            AppHost.AddComponent<TodoApp>(parent: this);
+            MainPage = new TabbedPage();
+            AppHost.AddComponent<TodoApp>(parent: MainPage);
         }
 
         protected override void OnStart()

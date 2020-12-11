@@ -1,6 +1,7 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.MobileBlazorBindings;
 using Xamarin.Forms;
@@ -11,16 +12,18 @@ namespace MobileBlazorBindingsXaminals
     {
         public IHost AppHost { get; }
 
-        public App()
+        public App(string[] args = null)
         {
-            AppHost = Host.CreateDefaultBuilder()
+            AppHost = MobileBlazorBindingsHost.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Register app-specific services
                     //services.AddSingleton<AppState>();
+                    services.AddSingleton<ShellNavigationManager>();
                 })
                 .Build();
 
+            MainPage = new ContentPage();
             AppHost.AddComponent<AppShell>(parent: this);
         }
 

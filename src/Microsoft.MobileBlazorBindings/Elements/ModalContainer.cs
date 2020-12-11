@@ -1,9 +1,9 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-using Microsoft.MobileBlazorBindings.Core;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Rendering;
+using Microsoft.MobileBlazorBindings.Core;
 using Microsoft.MobileBlazorBindings.Elements.Handlers;
 
 namespace Microsoft.MobileBlazorBindings.Elements
@@ -20,8 +20,11 @@ namespace Microsoft.MobileBlazorBindings.Elements
         [Parameter] public RenderFragment ChildContent { get; set; }
 #pragma warning restore CA1721 // Property names should not match get methods
 
+#pragma warning disable IDE1006 // Naming Styles
         private bool __ShowDialog { get; set; }
         private bool __DialogIsShown { get; set; }
+#pragma warning restore IDE1006 // Naming Styles
+
         [Parameter] public EventCallback OnClosed { get; set; }
 
         protected override void RenderAttributes(AttributesBuilder builder)

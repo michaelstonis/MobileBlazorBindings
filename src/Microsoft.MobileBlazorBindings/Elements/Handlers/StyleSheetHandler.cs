@@ -10,7 +10,7 @@ using XFS = Xamarin.Forms.StyleSheets;
 
 namespace Microsoft.MobileBlazorBindings.Elements.Handlers
 {
-    public class StyleSheetHandler : IXamarinFormsElementHandler, ICustomParentProcessor
+    public class StyleSheetHandler : IXamarinFormsElementHandler, INonPhysicalChild
     {
         private XF.VisualElement _parentVisualElement;
 
@@ -48,6 +48,11 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
             }
         }
 
+        public int GetPhysicalSiblingIndex()
+        {
+            return 0;
+        }
+
         public bool IsParented()
         {
             return _parentVisualElement != null;
@@ -58,19 +63,9 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
             return _parentVisualElement == elementControl;
         }
 
-        public void SetParent(object parent)
+        public void SetParent(XF.Element parent)
         {
-            if (parent is null)
-            {
-                throw new ArgumentNullException(nameof(parent));
-            }
-            if (!(parent is XF.VisualElement parentVisualElement))
-            {
-                throw new ArgumentNullException(nameof(parent), $"Expected parent to be of type '{typeof(XF.VisualElement).FullName}' but it is of type '{parent.GetType().FullName}'.");
-            }
-            _parentVisualElement = parentVisualElement;
-
-            UpdateParentStyleSheetIfPossible();
+            throw new NotImplementedException();
         }
 
         private void UpdateParentStyleSheetIfPossible()
@@ -94,6 +89,21 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
                     _parentVisualElement.Resources.Add(styleSheet);
                 }
             }
+        }
+
+        public void SetParent(object parentElement)
+        {
+            if (parentElement is null)
+            {
+                throw new ArgumentNullException(nameof(parentElement));
+            }
+            if (!(parentElement is XF.VisualElement parentVisualElement))
+            {
+                throw new ArgumentNullException(nameof(parentElement), $"Expected parent to be of type '{typeof(XF.VisualElement).FullName}' but it is of type '{parentElement.GetType().FullName}'.");
+            }
+            _parentVisualElement = parentVisualElement;
+
+            UpdateParentStyleSheetIfPossible();
         }
     }
 }

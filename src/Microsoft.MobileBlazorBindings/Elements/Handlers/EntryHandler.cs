@@ -1,18 +1,19 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-using Microsoft.MobileBlazorBindings.Core;
 using Microsoft.AspNetCore.Components;
-using System;
-using XF = Xamarin.Forms;
+using Microsoft.MobileBlazorBindings.Core;
 
 namespace Microsoft.MobileBlazorBindings.Elements.Handlers
 {
-    public class EntryHandler : InputViewHandler
+    public partial class EntryHandler : InputViewHandler
     {
-        public EntryHandler(NativeComponentRenderer renderer, XF.Entry entryControl) : base(renderer, entryControl)
+        partial void Initialize(NativeComponentRenderer renderer)
         {
-            EntryControl = entryControl ?? throw new ArgumentNullException(nameof(entryControl));
+            ConfigureEvent(
+                eventName: "oncompleted",
+                setId: id => CompletedEventHandlerId = id,
+                clearId: id => { if (CompletedEventHandlerId == id) { CompletedEventHandlerId = 0; } });
             EntryControl.Completed += (s, e) =>
             {
                 if (CompletedEventHandlerId != default)
@@ -20,6 +21,10 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
                     renderer.Dispatcher.InvokeAsync(() => renderer.DispatchEventAsync(CompletedEventHandlerId, null, e));
                 }
             };
+            ConfigureEvent(
+                eventName: "ontextchanged",
+                setId: id => TextChangedEventHandlerId = id,
+                clearId: id => { if (TextChangedEventHandlerId == id) { TextChangedEventHandlerId = 0; } });
             EntryControl.TextChanged += (s, e) =>
             {
                 if (TextChangedEventHandlerId != default)
@@ -31,30 +36,5 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
 
         public ulong CompletedEventHandlerId { get; set; }
         public ulong TextChangedEventHandlerId { get; set; }
-        public XF.Entry EntryControl { get; }
-
-        public override void ApplyAttribute(ulong attributeEventHandlerId, string attributeName, object attributeValue, string attributeEventUpdatesAttributeName)
-        {
-            switch (attributeName)
-            {
-                case nameof(XF.Entry.Text):
-                    EntryControl.Text = (string)attributeValue;
-                    break;
-                case nameof(XF.Entry.Placeholder):
-                    EntryControl.Placeholder = (string)attributeValue;
-                    break;
-                case "oncompleted":
-                    Renderer.RegisterEvent(attributeEventHandlerId, () => CompletedEventHandlerId = 0);
-                    CompletedEventHandlerId = attributeEventHandlerId;
-                    break;
-                case "ontextchanged":
-                    Renderer.RegisterEvent(attributeEventHandlerId, () => TextChangedEventHandlerId = 0);
-                    TextChangedEventHandlerId = attributeEventHandlerId;
-                    break;
-                default:
-                    base.ApplyAttribute(attributeEventHandlerId, attributeName, attributeValue, attributeEventUpdatesAttributeName);
-                    break;
-            }
-        }
     }
 }

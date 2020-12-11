@@ -10,9 +10,7 @@ namespace Microsoft.MobileBlazorBindings.Core
     // sequence numbers, and can't leak the instance outside their
     // position in the call stack.
 
-#pragma warning disable CA1815 // Override equals and operator equals on value types; these instances are never compared
     public readonly ref struct AttributesBuilder
-#pragma warning restore CA1815 // Override equals and operator equals on value types
     {
         private readonly RenderTreeBuilder _underlyingBuilder;
 
@@ -27,6 +25,18 @@ namespace Microsoft.MobileBlazorBindings.Core
             // and causes the diff algorithm to use a dictionary to match old
             // and new values.
             _underlyingBuilder.AddAttribute(0, name, value);
+        }
+
+        public void AddAttribute(string name, bool value)
+        {
+            // Using a fixed sequence number is allowed for attribute frames,
+            // and causes the diff algorithm to use a dictionary to match old
+            // and new values.
+
+            // bool values are converted to ints (which later become strings) to ensure that
+            // all values are always rendered, not only 'true' values. This ensures that the
+            // element handlers will see all property changes and can handle them as needed.
+            _underlyingBuilder.AddAttribute(0, name, value ? 1 : 0);
         }
     }
 }

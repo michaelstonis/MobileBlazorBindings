@@ -1,7 +1,6 @@
 ﻿// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-using Microsoft.Extensions.Hosting;
 using Microsoft.MobileBlazorBindings;
 using Xamarin.Forms;
 
@@ -9,9 +8,9 @@ namespace MobileBlazorBindingsHelloWorld
 {
     public class App : Application
     {
-        public App()
+        public App(string[] args = null)
         {
-            var host = Host.CreateDefaultBuilder()
+            var host = MobileBlazorBindingsHost.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Register app-specific services
@@ -19,7 +18,8 @@ namespace MobileBlazorBindingsHelloWorld
                 })
                 .Build();
 
-            host.AddComponent<HelloWorld>(parent: this);
+            MainPage = new ContentPage();
+            host.AddComponent<HelloWorld>(parent: MainPage);
         }
 
         protected override void OnStart()

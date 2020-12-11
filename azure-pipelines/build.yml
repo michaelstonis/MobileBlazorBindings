@@ -1,5 +1,6 @@
 parameters:
   windowsPool: VSEng-MicroBuildVS2019
+  macPool: MicroBuildV2MacPool
 
 jobs:
 - job: Windows
@@ -35,29 +36,11 @@ jobs:
 
   - template: dotnet.yml
 
-#- job: Linux
-#  pool:
-#    vmImage: Ubuntu 16.04
-#  steps:
-#  - checkout: self
-#    clean: true
-#  - template: install-dependencies.yml
-#  - template: dotnet.yml
-
-#- job: macOS
-#  pool:
-#    vmImage: macOS 10.13
-#  steps:
-#  - checkout: self
-#    clean: true
-#  - template: install-dependencies.yml
-#  - template: dotnet.yml
-
 - job: WrapUp
   dependsOn:
   - Windows
   pool: ${{ parameters.windowsPool }}
-  condition: succeededOrFailed()
+  condition: and(succeededOrFailed(), ne(variables['Build.Reason'], 'PullRequest'))
   steps:
   - checkout: self
     clean: true

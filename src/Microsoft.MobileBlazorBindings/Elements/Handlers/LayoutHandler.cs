@@ -1,31 +1,36 @@
-﻿// Copyright (c) Microsoft Corporation.
+// Copyright (c) Microsoft Corporation.
 // Licensed under the MIT license.
 
-using Microsoft.MobileBlazorBindings.Core;
+using System.Diagnostics;
 using XF = Xamarin.Forms;
 
 namespace Microsoft.MobileBlazorBindings.Elements.Handlers
 {
-    public class LayoutHandler : ViewHandler
+    public abstract partial class LayoutHandler : ViewHandler, IXamarinFormsContainerElementHandler
     {
-        public LayoutHandler(NativeComponentRenderer renderer, XF.Layout layoutControl) : base(renderer, layoutControl)
+        public virtual void AddChild(XF.Element child, int physicalSiblingIndex)
         {
-            LayoutControl = layoutControl ?? throw new System.ArgumentNullException(nameof(layoutControl));
+            var childAsView = child as XF.View;
+
+            var layoutControlOfView = LayoutControl as XF.Layout<XF.View>;
+
+            if (physicalSiblingIndex <= layoutControlOfView.Children.Count)
+            {
+                layoutControlOfView.Children.Insert(physicalSiblingIndex, childAsView);
+            }
+            else
+            {
+                Debug.WriteLine($"WARNING: {nameof(AddChild)} called with {nameof(physicalSiblingIndex)}={physicalSiblingIndex}, but layoutControlOfView.Children.Count={layoutControlOfView.Children.Count}");
+                layoutControlOfView.Children.Add(childAsView);
+            }
         }
 
-        public XF.Layout LayoutControl { get; }
-
-        public override void ApplyAttribute(ulong attributeEventHandlerId, string attributeName, object attributeValue, string attributeEventUpdatesAttributeName)
+        public virtual void RemoveChild(XF.Element child)
         {
-            switch (attributeName)
-            {
-                case nameof(XF.Layout.Padding):
-                    LayoutControl.Padding = AttributeHelper.StringToThickness(attributeValue);
-                    break;
-                default:
-                    base.ApplyAttribute(attributeEventHandlerId, attributeName, attributeValue, attributeEventUpdatesAttributeName);
-                    break;
-            }
+            var layoutControlOfView = (XF.Layout<XF.View>)LayoutControl;
+            var childAsView = child as XF.View;
+
+            layoutControlOfView.Children.Remove(childAsView);
         }
     }
 }

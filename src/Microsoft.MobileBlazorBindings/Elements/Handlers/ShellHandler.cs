@@ -3,29 +3,29 @@
 
 using Microsoft.MobileBlazorBindings.Core;
 using System;
+using System.Diagnostics;
+using System.Linq;
+using System.Reflection;
 using XF = Xamarin.Forms;
 
 namespace Microsoft.MobileBlazorBindings.Elements.Handlers
 {
-    public class ShellHandler : PageHandler
+    public partial class ShellHandler : PageHandler, IXamarinFormsContainerElementHandler
     {
-        private readonly ShellContentMarkerItem _dummyShellContent = new ShellContentMarkerItem();
         private readonly XF.ContentView _flyoutHeaderContentView = new XF.ContentView();
 
-        public ShellHandler(NativeComponentRenderer renderer, XF.Shell shellControl) : base(renderer, shellControl)
+        partial void Initialize(NativeComponentRenderer renderer)
         {
-            ShellControl = shellControl ?? throw new ArgumentNullException(nameof(shellControl));
-
-            // Add one item for Shell to load correctly. It will later be removed when the first real
-            // item is added by the app.
-            ShellControl.Items.Add(_dummyShellContent);
-
             // Add a dummy FlyoutHeader because it cannot be set dynamically later. When app code sets
             // its own FlyoutHeader, it will be set as the Content of this ContentView.
             // See https://github.com/xamarin/Xamarin.Forms/issues/6161 ([Bug] Changing the Shell Flyout Header after it's already rendered doesn't work)
             _flyoutHeaderContentView.IsVisible = false;
             ShellControl.FlyoutHeader = _flyoutHeaderContentView;
 
+            ConfigureEvent(
+                eventName: "onnavigated",
+                setId: id => NavigatedEventHandlerId = id,
+                clearId: id => { if (NavigatedEventHandlerId == id) { NavigatedEventHandlerId = 0; } });
             ShellControl.Navigated += (s, e) =>
             {
                 if (NavigatedEventHandlerId != default)
@@ -33,6 +33,10 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
                     renderer.Dispatcher.InvokeAsync(() => renderer.DispatchEventAsync(NavigatedEventHandlerId, null, e));
                 }
             };
+            ConfigureEvent(
+                eventName: "onnavigating",
+                setId: id => NavigatingEventHandlerId = id,
+                clearId: id => { if (NavigatingEventHandlerId == id) { NavigatingEventHandlerId = 0; } });
             ShellControl.Navigating += (s, e) =>
             {
                 if (NavigatingEventHandlerId != default)
@@ -42,57 +46,96 @@ namespace Microsoft.MobileBlazorBindings.Elements.Handlers
             };
         }
 
-        internal bool ClearDummyChild()
-        {
-            // Remove the dummy ShellContent if it's still there. This won't throw even if the item is already removed.
-            return ShellControl.Items.Remove(_dummyShellContent);
-        }
-
-        public XF.Shell ShellControl { get; }
         public ulong NavigatedEventHandlerId { get; set; }
         public ulong NavigatingEventHandlerId { get; set; }
 
-        public override void ApplyAttribute(ulong attributeEventHandlerId, string attributeName, object attributeValue, string attributeEventUpdatesAttributeName)
+        public virtual void AddChild(XF.Element child, int physicalSiblingIndex)
         {
-            switch (attributeName)
+            if (child is null)
             {
-                //[Parameter] public ShellItem CurrentItem { get; set; }
-                //[Parameter] public ShellNavigationState CurrentState { get; }
-                case nameof(XF.Shell.FlyoutBackgroundImage):
-                    ShellControl.FlyoutBackgroundImage = attributeValue == null ? null : AttributeHelper.StringToImageSource((string)attributeValue);
-                    break;
-                case nameof(XF.Shell.FlyoutBackgroundImageAspect):
-                    ShellControl.FlyoutBackgroundImageAspect = (XF.Aspect)AttributeHelper.GetInt(attributeValue);
-                    break;
-                case nameof(XF.Shell.FlyoutBackgroundColor):
-                    ShellControl.FlyoutBackgroundColor = AttributeHelper.StringToColor((string)attributeValue);
-                    break;
-                case nameof(XF.Shell.FlyoutBehavior):
-                    ShellControl.FlyoutBehavior = (XF.FlyoutBehavior)AttributeHelper.GetInt(attributeValue);
-                    break;
-                case nameof(XF.Shell.FlyoutHeaderBehavior):
-                    ShellControl.FlyoutHeaderBehavior = (XF.FlyoutHeaderBehavior)AttributeHelper.GetInt(attributeValue);
-                    break;
-                //[Parameter] public DataTemplate FlyoutHeaderTemplate { get; set; }
-                case nameof(XF.Shell.FlyoutIcon):
-                    ShellControl.FlyoutIcon = attributeValue == null ? null : AttributeHelper.StringToImageSource((string)attributeValue);
-                    break;
-                //[Parameter] public bool? FlyoutIsPresented { get; set; } // TODO: Two-way binding?
-                //[Parameter] public DataTemplate ItemTemplate { get; set; }
-                //[Parameter] public DataTemplate MenuItemTemplate { get; set; }
+                throw new ArgumentNullException(nameof(child));
+            }
 
-                case "onnavigated":
-                    Renderer.RegisterEvent(attributeEventHandlerId, () => NavigatedEventHandlerId = 0);
-                    NavigatedEventHandlerId = attributeEventHandlerId;
-                    break;
-                case "onnavigating":
-                    Renderer.RegisterEvent(attributeEventHandlerId, () => NavigatingEventHandlerId = 0);
-                    NavigatingEventHandlerId = attributeEventHandlerId;
-                    break;
-                default:
-                    base.ApplyAttribute(attributeEventHandlerId, attributeName, attributeValue, attributeEventUpdatesAttributeName);
-                    break;
+            XF.ShellItem itemToAdd = child switch
+            {
+                XF.TemplatedPage childAsTemplatedPage => childAsTemplatedPage, // Implicit conversion
+                XF.ShellContent childAsShellContent => childAsShellContent, // Implicit conversion
+                XF.ShellSection childAsShellSection => childAsShellSection, // Implicit conversion
+                XF.MenuItem childAsMenuItem => childAsMenuItem, // Implicit conversion
+                XF.ShellItem childAsShellItem => childAsShellItem,
+                _ => throw new NotSupportedException($"Handler of type '{GetType().FullName}' representing element type '{TargetElement?.GetType().FullName ?? "<null>"}' doesn't support adding a child (child type is '{child.GetType().FullName}').")
+            };
+
+            if (ShellControl.Items.Count >= physicalSiblingIndex)
+            {
+                ShellControl.Items.Insert(physicalSiblingIndex, itemToAdd);
+            }
+            else
+            {
+                Debug.WriteLine($"WARNING: {nameof(AddChild)} called with {nameof(physicalSiblingIndex)}={physicalSiblingIndex}, but ShellControl.Items.Count={ShellControl.Items.Count}");
+                ShellControl.Items.Add(itemToAdd);
             }
         }
+
+        public virtual void RemoveChild(XF.Element child)
+        {
+            if (child is null)
+            {
+                throw new ArgumentNullException(nameof(child));
+            }
+
+            var itemToRemove = child switch
+            {
+                XF.TemplatedPage childAsTemplatedPage => GetItemForTemplatedPage(childAsTemplatedPage),
+                XF.ShellContent childAsShellContent => GetItemForContent(childAsShellContent),
+                XF.ShellSection childAsShellSection => GetItemForSection(childAsShellSection),
+                XF.MenuItem childAsMenuItem => GetItemForMenuItem(childAsMenuItem),
+                XF.ShellItem childAsShellItem => childAsShellItem,
+                _ => throw new NotSupportedException($"Handler of type '{GetType().FullName}' representing element type '{TargetElement?.GetType().FullName ?? "<null>"}' doesn't support removing a child (child type is '{child.GetType().FullName}').")
+            };
+
+            ShellControl.Items.Remove(itemToRemove);
+        }
+
+        private XF.ShellItem GetItemForTemplatedPage(XF.TemplatedPage childAsTemplatedPage)
+        {
+            return ShellControl.Items
+                .FirstOrDefault(item => item.Items
+                    .Any(section => section.Items.Any(content => content.Content == childAsTemplatedPage)));
+        }
+
+        private XF.ShellItem GetItemForContent(XF.ShellContent childAsShellContent)
+        {
+            return ShellControl.Items
+                .FirstOrDefault(item => item.Items
+                    .Any(section => section.Items.Contains(childAsShellContent)));
+        }
+
+        private XF.ShellItem GetItemForSection(XF.ShellSection childAsShellSection)
+        {
+            return ShellControl.Items.FirstOrDefault(item => item.Items.Contains(childAsShellSection));
+        }
+
+        private XF.ShellItem GetItemForMenuItem(XF.MenuItem childAsMenuItem)
+        {
+            // MenuItem is wrapped in ShellMenuItem, which is internal type.
+            // Not sure how to identify this item correctly.
+            return ShellControl.Items.FirstOrDefault(item => IsShellItemWithMenuItem(item, childAsMenuItem));
+        }
+
+        private static bool IsShellItemWithMenuItem(XF.ShellItem shellItem, XF.MenuItem menuItem)
+        {
+            // Xamarin.Forms.MenuShellItem is internal so we have to use reflection to check that
+            // its MenuItem property is the same as the MenuItem we're looking for.
+            if (!MenuShellItemType.IsAssignableFrom(shellItem.GetType()))
+            {
+                return false;
+            }
+            var menuItemInMenuShellItem = MenuShellItemMenuItemProperty.GetValue(shellItem);
+            return menuItemInMenuShellItem == menuItem;
+        }
+
+        private static readonly Type MenuShellItemType = typeof(XF.ShellItem).Assembly.GetType("Xamarin.Forms.MenuShellItem");
+        private static readonly PropertyInfo MenuShellItemMenuItemProperty = MenuShellItemType.GetProperty("MenuItem");
     }
 }

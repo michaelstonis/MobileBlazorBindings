@@ -7,35 +7,44 @@ steps:
   continueOnError: false
   env:
     TeamName: $(_TeamName)
+  condition: ne(variables['Build.Reason'], 'PullRequest')
 
 # Note: 2019-12 Even though 'dotnet build' can build this, it's not compatible with MicroBuild Signing. Must use MSBuild.
 - task: MSBuild@1
   displayName: 'Build src projects'
   inputs:
     msbuildArguments: /t:build /p:NoRestore=true
-    solution: 'src/**/*.csproj' 
+    solution: CI/CI.Windows.proj
     configuration: '$(BuildConfiguration)'
-    arguments: /v:diag /bl:"$(Build.ArtifactStagingDirectory)/build_logs/build.binlog"
+
+- task: VSTest@2
+  displayName: 'Run tests'
+  inputs:
+    testSelector: 'testAssemblies'
+    testAssemblyVer2: |
+      **\*.UnitTests.dll
+      !**\obj\**
+    configuration: '$(BuildConfiguration)'
 
 - task: MSBuild@1
   displayName: 'Pack src projects'
   inputs:
     msbuildArguments: /t:pack /p:NoBuild=true
-    solution: 'src/**/*.csproj' 
+    solution: CI/CI.Windows.proj
     configuration: '$(BuildConfiguration)'
 
 - task: MSBuild@1
   displayName: 'Prepare template project generated files'
   inputs:
     msbuildArguments: /t:SetNuGetPackageVersionInTemplateJson
-    solution: 'templates/*.csproj' 
+    solution: 'templates/*.csproj'
     configuration: '$(BuildConfiguration)'
 
 - task: MSBuild@1
   displayName: 'Pack template projects'
   inputs:
     msbuildArguments: /t:pack
-    solution: 'templates/*.csproj' 
+    solution: 'templates/*.csproj'
     configuration: '$(BuildConfiguration)'
 
 - task: PowerShell@2
@@ -51,11 +60,13 @@ steps:
     contents: '$(System.DefaultWorkingDirectory)/**/*.nupkg'
     targetFolder: $(Build.ArtifactStagingDirectory)/SignedPackages
     flattenFolders: true
+  condition: ne(variables['Build.Reason'], 'PullRequest')
 
 - task: PublishPipelineArtifact@1
   inputs:
     targetPath: $(Build.ArtifactStagingDirectory)/SignedPackages
     artifactName: 'SignedPackages'
+  condition: ne(variables['Build.Reason'], 'PullRequest')
 
 # - task: PublishSymbols@2
 #   inputs:
@@ -78,3 +89,4 @@ steps:
 - task: MicroBuildCleanup@1
   env:
     TeamName: $(_TeamName)
+  condition: ne(variables['Build.Reason'], 'PullRequest')

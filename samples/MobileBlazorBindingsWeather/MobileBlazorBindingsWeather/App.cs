@@ -2,7 +2,6 @@
 // Licensed under the MIT license.
 
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.MobileBlazorBindings;
 using Xamarin.Forms;
 
@@ -10,9 +9,9 @@ namespace MobileBlazorBindingsWeather
 {
     public class App : Application
     {
-        public App()
+        public App(string[] args = null)
         {
-            var host = Host.CreateDefaultBuilder()
+            var host = MobileBlazorBindingsHost.CreateDefaultBuilder(args)
                 .ConfigureServices((hostContext, services) =>
                 {
                     // Register app-specific services
@@ -20,7 +19,8 @@ namespace MobileBlazorBindingsWeather
                 })
                 .Build();
 
-            host.AddComponent<MainPage>(parent: this);
+            MainPage = new ContentPage();
+            host.AddComponent<WeatherApp>(parent: MainPage);
         }
 
         protected override void OnStart()
